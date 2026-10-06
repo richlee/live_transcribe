@@ -4,7 +4,7 @@ Updated: 2026-10-06.
 
 ## Current stage
 
-Stages 1–3 are verified for the current experiment. The terminal microphone-to-transcript prototype is in `live_transcribe/`. Thirteen automated tests pass, including synthetic capture controls, error/retry and cancellation. Actual Whisper replay and live microphone capture succeed. The user reports pause/resume worked, final text is accurate enough and delay is acceptable. Stopping saved the last phrase, and recovery of the completed live session leaves the transcript unchanged. Start/stop/recovery are in `docs/PROTOTYPE.md`. No Writer insertion, global shortcut or tray is implemented.
+Stages 1–3 are verified for the current experiment. Stage 4 Writer insertion is implemented and independently tested; user microphone-to-Writer feedback is pending. Seventeen automated tests pass. Actual Whisper replay and live microphone capture succeed; the user accepted stage 3 accuracy, delay and pause/resume. Writer uses a host Python UNO sidecar with Flatpak LibreOffice, binds one selected document, checks X11 focus, latches withholding and preserves durable final text. Session/phrase bookmarks prevent wrong-document recovery and duplicate insertion; ambiguous delivery requires manual review. Disposable-document checks pass for text, punctuation, apostrophes, line/paragraph breaks, clipboard preservation, focus switching to another document and recovery. Instructions: `docs/WRITER.md`. Global shortcut/tray remain stage 5.
 
 ## Findings and constraints
 
@@ -12,7 +12,7 @@ Stages 1–3 are verified for the current experiment. The terminal microphone-to
 - 3.5 GiB usable RAM; about 835 MiB available at inspection, with some swap already used.
 - MX/Debian 13, XFCE on X11; PipeWire with WirePlumber installed.
 - Kernel and user-terminal ALSA inventory confirm ALC269VC analog capture. Internal microphone port is active. First recording clipped. User made a second take after a suggested Capture adjustment; it is very quiet but has no clipped samples (peak -15 dBFS). User restored Capture to +30 dB before the later inspection, which showed PipeWire 32% (-30 dB). The earlier inference that the adjustment did not persist was incorrect.
-- CMake and FFmpeg are now installed. Writer was not found installed in the inspection.
+- CMake and FFmpeg are installed. Initial native-package inspection missed the installed Flatpak Writer (org.libreoffice.LibreOffice, 26.8.1.1). User installed python3-uno; host bridge connectivity to disposable Flatpak Writer is verified.
 - Whisper tiny.en takes 19.745 s (2 threads) / 18.217 s (4 threads) for the 11 s public sample, and 43.849 s (4 threads) for the 30.065 s user recording. Slower than real time; base.en comparison deferred. User reports some wrong words but no invented text.
 - Whisper source, CPU-native Release build, models and private speech artifacts are under ignored `.local/`. Recorder and benchmark helpers are in `scripts/`.
 - Vosk 0.3.45 installed in `.local/venv`; small English model extracted under `.local/`. The same 30.065 s recording takes 12.472 s (RTF 0.415), with peak process RSS 270.9 MiB. User reports too many errors, so it is not acceptable on this recording. Dependencies are pinned in `requirements-vosk.txt`, and `pip check` passes.
@@ -26,4 +26,4 @@ Stages 1–3 are verified for the current experiment. The terminal microphone-to
 
 ## Next step
 
-Proceed to stage 4 safe Writer insertion when requested. Confirm/install Writer (not found during initial inspection), use the confirmed X11 session, and test ordinary text, punctuation, apostrophes and paragraph breaks in a disposable document. Withhold insertion when Writer loses focus, retain pending final text for recovery, and never send queued text to another window. Add new line/new paragraph commands without rewriting prose. Keep clipboard preservation explicit if clipboard insertion is chosen. Global shortcut/tray are stage 5. Preserve the verified terminal path and its local recovery. Never commit private session content.
+Obtain user feedback on live microphone-to-Writer insertion using a blank document and `--writer --no-text`. Focus checks and writes are separate: a last-moment focus change can write only into the original bound document, never the newly focused app. Recovery requires the original session bookmark (save ODT to persist it); a partially inserted phrase is not automatically retried. Once user accepts stage 4, proceed to stage 5 shortcut/tray when authorized. Preserve terminal capture/recovery. Never commit private session content.

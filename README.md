@@ -2,7 +2,8 @@
 
 Local English dictation for a Samsung Series 9 laptop running MX Linux/XFCE.
 The current prototype transcribes completed microphone phrases in a terminal
-using optimized whisper.cpp. Writer insertion and tray controls come later.
+using optimized whisper.cpp, with optional insertion into one bound Writer document.
+Global shortcut and tray controls come later.
 
 After following [setup instructions](docs/SETUP.md), start from this directory:
 
@@ -16,3 +17,6 @@ phrases. Final text and recoverable audio are saved privately under ignored
 `.local/sessions/`. See [prototype instructions](docs/PROTOTYPE.md) for recovery,
 limitations and verification; [benchmarks](docs/BENCHMARKS.md) for measurements;
 and [handoff](HANDOFF.md) for current status.
+
+For direct dictation into LibreOffice, follow [Writer setup and recovery](docs/WRITER.md)
+and start with `--writer --no-text`.

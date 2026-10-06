@@ -1,4 +1,4 @@
-"""Desktop-terminal microphone-to-final-text prototype; no document insertion."""
+"""Local microphone-to-final-text dictation, with optional safe Writer insertion."""
 import argparse
 import json
 import os
@@ -26,10 +26,11 @@ def say(status, message):
 
 
 class Recognizer:
-    def __init__(self, session, binary, model, stop, cancel, show_text=True):
+    def __init__(self, session, binary, model, stop, cancel, show_text=True, writer=None):
         self.session, self.binary, self.model = session, binary, model
         self.stop, self.cancel = stop, cancel
         self.show_text = show_text
+        self.writer = writer
         self.jobs = queue.Queue(maxsize=8)
         self.failed = False
         self.worker = threading.Thread(target=self.run, name="recognizer")
@@ -40,6 +41,14 @@ class Recognizer:
     def finish(self):
         self.jobs.put(None)
         self.worker.join()
+
+    def deliver(self, identity):
+        if self.writer:
+            try:
+                self.writer.deliver(identity)
+            except Exception as error:
+                self.writer.held = True
+                say("WRITER", f"Insertion stopped; final transcript retained: {error}")
 
     def run(self):
         while (job := self.jobs.get()) is not None:
@@ -63,6 +72,7 @@ class Recognizer:
     def recognize(self, identity, queued):
         record = self.session.read(identity)
         if record["status"] == "complete":
+            self.deliver(identity)
             return
         context = audio_context(record["audio_seconds"])
         record.update(status="processing", audio_ctx=context)
@@ -118,6 +128,7 @@ class Recognizer:
                 print(text, flush=True)
         elif not text:
             say("REVIEW", f"Phrase {identity:06} produced no text; its audio is retained")
+        self.deliver(identity)
 
 
 def replay_frames(path, realtime, stop):
@@ -221,6 +232,9 @@ def main():
     parser.add_argument("--max-seconds", type=float, default=15)
     parser.add_argument("--vad-mode", type=int, choices=range(4), default=2)
     parser.add_argument("--no-text", action="store_true", help="Print statuses without private recognized text")
+    parser.add_argument("--writer", action="store_true", help="Select and bind one Writer document")
+    parser.add_argument("--writer-port", type=int, default=20027, help="Local UNO port (default 20027)")
+    parser.add_argument("--writer-window", type=lambda value: int(value, 0), help="Explicit X11 Writer window ID")
     args = parser.parse_args()
     if not 300 <= args.pause_ms <= 2000 or not 2 <= args.max_seconds <= 25:
         parser.error("Pause must be 300–2000 ms and maximum phrase length 2–25 s")
@@ -257,7 +271,15 @@ def main():
 
     old_int = signal.signal(signal.SIGINT, interrupt)
     old_term = signal.signal(signal.SIGTERM, interrupt)
-    worker = Recognizer(session, binary, model, stop, cancel, not args.no_text)
+    writer = None
+    if args.writer:
+        from .writer import Writer
+        try:
+            writer = Writer(session, args.writer_port, args.writer_window, bool(args.recover))
+        except Exception as error:
+            session.close()
+            parser.error(f"Writer connection failed: {error}; see docs/WRITER.md")
+    worker = Recognizer(session, binary, model, stop, cancel, not args.no_text, writer)
     worker.worker.start()
     failed = False
     say("SESSION", str(session.path))
@@ -279,7 +301,7 @@ def main():
         if args.recover:
             say("RECOVERING", "No microphone will be opened; completed phrases are skipped.")
             for record in session.records():
-                if record["status"] != "complete" and not cancel.is_set():
+                if (record["status"] != "complete" or writer) and not cancel.is_set():
                     # Recovery can wait for capacity; no microphone audio is arriving.
                     worker.jobs.put((record["id"], time.monotonic()))
         else:
@@ -305,6 +327,8 @@ def main():
         stop.set()
         say("STOPPING", "Finishing saved phrases. Ctrl+C again cancels recognition and keeps pending audio.")
         worker.finish()
+        if writer:
+            writer.close()
         session.rebuild_transcript()
         records = session.records()
         unfinished = sum(r["status"] != "complete" for r in records)
