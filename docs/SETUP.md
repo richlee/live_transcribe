@@ -84,7 +84,8 @@ python3 scripts/benchmark.py .local/recordings/speech-XXXXXX.wav --model base.en
 
 ## Vosk fallback comparison
 
-Whisper's measured speed does not currently support continuous dictation.
+Whisper's initial unquantized, non-BLAS measurements lacked speed headroom.
+Later optimization measurements are documented in `BENCHMARKS.md`.
 Prepare an isolated Vosk environment and the official small English model:
 
 ```bash
@@ -105,6 +106,63 @@ and includes import/model loading in wall time. Peak RSS includes Python and
 Vosk in the same process. It measures file processing, not real-time endpoint
 latency. Review the local transcript for accuracy; the small model may omit
 punctuation and casing.
+
+## Experimental Whisper optimization
+
+Keep the original CPU build for comparison. Build a separate OpenBLAS version:
+
+```bash
+sudo apt-get install libopenblas-dev pkg-config
+cmake -S .local/whisper.cpp -B .local/whisper.cpp/build-blas \
+  -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=ON -DGGML_BLAS=ON \
+  -DGGML_BLAS_VENDOR=OpenBLAS -DWHISPER_BUILD_TESTS=OFF \
+  -DWHISPER_BUILD_SERVER=OFF
+cmake --build .local/whisper.cpp/build-blas --target whisper-cli -j 1 --config Release
+python3 scripts/benchmark.py .local/whisper.cpp/samples/jfk.wav --build build-blas --threads 2
+python3 scripts/benchmark.py .local/whisper.cpp/samples/jfk.wav --build build-blas --threads 4
+```
+
+Create Q5_0 weights locally from the existing English tiny model:
+
+```bash
+cmake --build .local/whisper.cpp/build --target whisper-quantize -j 1 --config Release
+.local/whisper.cpp/build/bin/whisper-quantize \
+  .local/whisper.cpp/models/ggml-tiny.en.bin \
+  .local/whisper.cpp/models/ggml-tiny.en-q5_0.bin q5_0
+python3 scripts/benchmark.py .local/whisper.cpp/samples/jfk.wav --model tiny.en-q5_0 --threads 2
+```
+
+Q5_0 artifact SHA-256:
+`3d11806c1fec19226f210c5286f58ef8c0e883c8b1f6a8a9c695c3b1fee35ce8`.
+This is a reproducibility record for the locally generated file.
+
+Current candidate: Q5_0, OpenBLAS, two threads, reduced context covering the
+whole phrase. For a ten-second clip (replace the placeholder with its path):
+
+```bash
+python3 scripts/benchmark.py .local/recordings/ten-second-clip.wav \
+  --model tiny.en-q5_0 --build build-blas --threads 2 --audio-ctx 600
+```
+
+For short clips, experimentally reduce encoder context. Units correspond to
+50 encoder positions per second: 300 covers six seconds, 600 covers twelve.
+The benchmark helper rejects a context shorter than the entire input, avoiding
+unmeasured audio loss. Context reduction changes inference and requires accuracy
+review; matching a single public sample is insufficient.
+
+```bash
+ffmpeg -hide_banner -nostdin -n -i .local/whisper.cpp/samples/jfk.wav \
+  -t 5 -ar 16000 -ac 1 -c:a pcm_s16le .local/jfk-5s.wav
+python3 scripts/benchmark.py .local/jfk-5s.wav --threads 4
+python3 scripts/benchmark.py .local/jfk-5s.wav --threads 4 --audio-ctx 300
+python3 scripts/benchmark.py .local/jfk-5s.wav --threads 4 --audio-ctx 300 --model tiny.en-q5_0
+```
+
+The helper sets both `OPENBLAS_NUM_THREADS` and `OMP_NUM_THREADS` to the
+requested thread count and records them in metrics. Flash attention remains
+enabled by the pinned engine's default. Compare models/builds sequentially,
+without compilation running alongside timed recognition. Review private
+transcripts locally; models, excerpts and logs remain ignored.
 
 ## Stop, privacy and troubleshooting
 
