@@ -8,6 +8,35 @@ import uuid
 from .core import atomic_text
 
 
+def select_document_window(stop=None):
+    """Wait briefly for a popup/key grab to release before selecting a document."""
+    deadline = time.monotonic() + 3
+    while True:
+        selection = subprocess.Popen(['xdotool', 'selectwindow'], stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE, text=True)
+        try:
+            while selection.poll() is None:
+                if stop is not None and stop.is_set():
+                    raise RuntimeError('Document selection cancelled; no microphone was opened')
+                time.sleep(0.05)
+            output, error = selection.communicate()
+            if selection.returncode == 0:
+                return int(output.strip(), 0)
+            if 'mouse grabbed' not in error.lower() or time.monotonic() >= deadline:
+                raise RuntimeError('Document selection failed. Close any popup or drag operation and try again; no microphone was opened')
+        finally:
+            if selection.poll() is None:
+                selection.terminate()
+                selection.wait(timeout=2)
+            selection.stdout.close()
+            selection.stderr.close()
+        if stop is not None:
+            if stop.wait(0.1):
+                raise RuntimeError('Document selection cancelled; no microphone was opened')
+        else:
+            time.sleep(0.1)
+
+
 class Writer:
     def __init__(self, session, port, window=None, recovering=False, stop=None):
         self.session = session
@@ -15,21 +44,7 @@ class Writer:
         self.process = None
         if window is None:
             print('[WRITER] Click the intended Writer document to bind this session.', flush=True)
-            selection = subprocess.Popen(['xdotool', 'selectwindow'], stdout=subprocess.PIPE, text=True)
-            try:
-                while selection.poll() is None:
-                    if stop is not None and stop.is_set():
-                        raise RuntimeError('Document selection cancelled; no microphone was opened')
-                    time.sleep(0.05)
-                output = selection.stdout.read()
-                if selection.returncode:
-                    raise RuntimeError('Document selection failed')
-                window = int(output.strip(), 0)
-            finally:
-                if selection.poll() is None:
-                    selection.terminate()
-                    selection.wait(timeout=2)
-                selection.stdout.close()
+            window = select_document_window(stop)
         path = session.path / 'writer.json'
         if recovering:
             if not path.exists():

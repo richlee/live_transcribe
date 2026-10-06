@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from live_transcribe.core import Session
-from live_transcribe.writer import Writer
+from live_transcribe.writer import Writer, select_document_window
 
 
 class DeliveryTests(unittest.TestCase):
@@ -83,6 +83,27 @@ class DeliveryTests(unittest.TestCase):
             self.assertFalse((self.session.path / 'writer.json').exists())
         finally:
             timer.cancel()
+
+    def test_selection_retries_temporary_mouse_grab(self):
+        original = subprocess.Popen
+        commands = []
+        def selector(command, **kwargs):
+            commands.append(command)
+            code = ('import sys; print("Something already has the mouse grabbed", file=sys.stderr); sys.exit(1)'
+                    if len(commands) == 1 else 'print("0x1234")')
+            return original([sys.executable, '-c', code], **kwargs)
+        with patch('live_transcribe.writer.subprocess.Popen', selector):
+            self.assertEqual(select_document_window(), 0x1234)
+        self.assertEqual(len(commands), 2)
+
+    def test_selection_does_not_retry_unrelated_failure(self):
+        original = subprocess.Popen
+        with patch('live_transcribe.writer.subprocess.Popen',
+                   side_effect=lambda command, **kwargs: original(
+                       [sys.executable, '-c', 'import sys; sys.exit(2)'], **kwargs)) as selector:
+            with self.assertRaisesRegex(RuntimeError, 'no microphone was opened'):
+                select_document_window()
+        self.assertEqual(selector.call_count, 1)
 
 
 if __name__ == '__main__':

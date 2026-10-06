@@ -125,17 +125,26 @@ class Tray:
         if self.quitting or self.stopping_at or self.state.phase in ('starting', 'stopping'):
             return
         if not self.child:
-            try:
-                self.start()
-            except Exception as error:
-                self.state.phase = 'ready'
-                self.state.error = str(error)
-                self.dialog(str(error))
-                self.refresh()
+            self.menu.popdown()
+            self.state.phase = 'starting'
+            self.refresh()
+            GLib.timeout_add(150, self.start_after_menu)
             return
         self.want_listening = not self.want_listening
         self.send('p')
         self.refresh()
+
+    def start_after_menu(self):
+        if self.quitting:
+            return False
+        try:
+            self.start()
+        except Exception as error:
+            self.state.phase = 'ready'
+            self.state.error = str(error)
+            self.dialog(str(error))
+            self.refresh()
+        return False
 
     def stop(self, *_):
         if self.child and self.state.phase != 'stopping':
@@ -163,6 +172,10 @@ class Tray:
 
     def consume(self, line):
         self.state.consume(line)
+        if line.startswith('__main__.py: error: '):
+            self.state.error = line.partition(': error: ')[2]
+            if not self.quitting and not self.stopping_at:
+                self.dialog(self.state.error)
         if self.stopping_at and not line.startswith('[STOPPED]'):
             self.state.phase = 'stopping'
             self.state.listening = False
