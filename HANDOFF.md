@@ -11,7 +11,7 @@ Stage 1 inspection is documented in `docs/INSPECTION.md` and committed/pushed in
 - Intel i5-2537M: two cores/four threads, AVX without reported AVX2/FMA.
 - 3.5 GiB usable RAM; about 835 MiB available at inspection, with some swap already used.
 - MX/Debian 13, XFCE on X11; PipeWire with WirePlumber installed.
-- Kernel and user-terminal ALSA inventory confirm ALC269VC analog capture. Default input is Built-in Audio Analog Stereo, at 44% volume in the inspection. User capture works but was described as quiet with machine noise; signal analysis suggests clipping. Selected physical microphone port is unverified.
+- Kernel and user-terminal ALSA inventory confirm ALC269VC analog capture. Internal microphone port is confirmed active. Source is unmuted at 44% (-21.43 dB); hardware Capture is +30 dB and Internal Mic Boost is 0 dB. User capture works but was described as quiet with machine noise; signal analysis suggests clipping. No gain changes made yet.
 - CMake and FFmpeg are now installed. Writer was not found installed in the inspection.
 - Whisper tiny.en takes 19.745 s (2 threads) / 18.217 s (4 threads) for the 11 s public sample, and 43.849 s (4 threads) for the 30.065 s user recording. Slower than real time; base.en comparison deferred. User reports some wrong words but no invented text.
 - Whisper source, CPU-native Release build, models and private speech artifacts are under ignored `.local/`. Recorder and benchmark helpers are in `scripts/`.
@@ -20,4 +20,4 @@ Stage 1 inspection is documented in `docs/INSPECTION.md` and committed/pushed in
 
 ## Next step
 
-Neither engine has passed both speed and accuracy checks. Inspect the selected microphone port and gain from the user's desktop terminal, then arrange a clearer speech recording and repeat recognition before selecting an engine. If small Vosk remains inaccurate, investigate another recognition configuration. Do not build live integration yet. File benchmark speed alone does not establish comfortable phrase latency. Safe Writer insertion and tray controls come later. Commit/push aggregate findings, never private speech artifacts.
+Neither engine has passed both speed and accuracy checks. Test lower hardware Capture gain on a new user-approved recording, inspect clipping and repeat recognition before selecting an engine. Original Capture setting was +30 dB; preserve or restore settings as needed. If small Vosk remains inaccurate, investigate another recognition configuration. Do not build live integration yet. File benchmark speed alone does not establish comfortable phrase latency. Safe Writer insertion and tray controls come later. Commit/push aggregate findings, never private speech artifacts.

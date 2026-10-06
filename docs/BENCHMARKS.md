@@ -29,6 +29,15 @@ input-processing effect caused the peaks. Do not simply increase gain based
 on perceived quietness. Check the physical input port, capture gain and
 microphone boost before another take if recognition quality is poor.
 
+Follow-up inspection confirms the internal microphone port is active; the
+external microphone port is unavailable. Hardware Capture is at +30 dB on
+both channels, Internal Mic Boost is 0 dB, and the unmuted PipeWire source is
+at 44% (-21.43 dB). High hardware gain followed by downstream attenuation is
+a plausible explanation for quiet perceived output with clipping, but the
+cause is not yet established. Next test: lower hardware capture gain and
+measure clipping and recognition on a new recording. No gain changes were
+made during this inspection.
+
 ## Decision so far
 
 Tiny.en is slower than real time in all three measured runs. On the two-thread
