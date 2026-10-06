@@ -60,4 +60,9 @@ Vosk processed this recording about 3.5 times faster than Whisper's four-thread
 run and faster than real time. This supports testing a live microphone-to-final-
 transcript prototype if user accuracy feedback is acceptable. It does not
 measure pause-to-text delay, capture queue behaviour or stopping latency.
-User accuracy assessment of Vosk is pending; engine selection remains provisional.
+The user reports too many errors in Vosk's transcript. The small model is not
+acceptable on this recording despite its speed. Neither tested engine has
+passed both speed and user accuracy checks; do not proceed to live integration
+yet. Next, verify the selected input port and gain, obtain a clearer recording,
+and repeat the comparison. If small Vosk remains inaccurate on improved input,
+investigate another recognition configuration before choosing an engine.
