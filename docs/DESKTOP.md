@@ -4,7 +4,7 @@ Launch **Live Transcribe** from XFCE's applications menu. It starts a small tray
 
 ## Everyday controls
 
-- **Ctrl+Alt+Space**: start a session, then toggle listening on/off.
+- **Ctrl+Alt+Space**: start a session, then pause/resume listening. The right-click Start/Pause/Resume menu item displays the configured shortcut (or marks it unavailable if binding failed).
 - **Left click the tray icon**: the same toggle.
 - **Right click**: pause/resume, stop and finish queued speech, open the latest session folder, instructions, or quit.
 

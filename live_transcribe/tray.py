@@ -33,6 +33,7 @@ def ensure_writer_connection(port, log):
 class Tray:
     def __init__(self, shortcut='<Control><Alt>space', port=20027):
         self.shortcut, self.port = shortcut, port
+        self.shortcut_label = Gtk.accelerator_get_label(*Gtk.accelerator_parse(shortcut))
         self.state = DesktopState()
         self.child = None
         self.writer_process = None
@@ -88,9 +89,11 @@ class Tray:
         # Local vector icons: colors plus distinct symbols for each state.
         filename = ROOT / 'assets' / f"{label.lower().replace(' ', '-')}.svg"
         self.icon.set_from_file(str(filename))
-        self.icon.set_tooltip_text(f'Live Transcribe — {label}\n{self.state.detail}\nToggle: {self.shortcut}')
+        shortcut = self.shortcut_label if self.bound else f'{self.shortcut_label} unavailable'
+        self.icon.set_tooltip_text(f'Live Transcribe — {label}\n{self.state.detail}\nToggle: {shortcut}')
         self.status.set_label(f'{label} — {self.state.detail}')
-        self.toggle_item.set_label('Pause listening' if self.want_listening else ('Resume listening' if self.child else 'Start dictation / select Writer'))
+        action = 'Pause listening' if self.want_listening else ('Resume listening' if self.child else 'Start dictation / select Writer')
+        self.toggle_item.set_label(f'{action}    ({shortcut})')
         self.toggle_item.set_sensitive(self.state.phase not in ('starting', 'stopping'))
         self.stop_item.set_sensitive(self.child is not None and self.state.phase != 'stopping')
 

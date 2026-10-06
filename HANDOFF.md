@@ -35,3 +35,5 @@ The reported canberra startup warning comes from the optional sound module reque
 Focus checks and writes remain separate: a last-moment focus change can write only into the original bound document, never the newly focused app. Recovery requires the original session bookmark (save ODT to persist it); a partially inserted phrase is not automatically retried. Preserve terminal capture/recovery. Never commit private session content.
 
 User feedback: opening a fresh Writer document on first toggle was confusing. Startup now reuses an existing loopback UNO connection, or requests --nologo with the UNO accept option without --writer, so users can select their existing Writer document. Menu labels explicitly distinguish stopping the session (tray stays) from quitting the app (icon disappears).
+
+The right-click Start/Pause/Resume item and tooltip now display the configured shortcut in readable GTK format; a failed binding is marked unavailable. Ctrl+Alt+Space is the existing global pause/resume shortcut. Stop and Quit currently have no keyboard shortcuts.
