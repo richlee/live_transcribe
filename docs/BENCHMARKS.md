@@ -17,8 +17,9 @@ Peak RSS measures the recognition child process on Linux.
 | User natural-speech recording | 4 | 30.065 s | 43.849 s | 1.458 | 170.1 MiB |
 
 The public sample produced the expected spoken words on manual inspection;
-this does not measure accuracy on the user's voice. User-speech accuracy
-feedback is pending; its transcript remains private in ignored local storage.
+this does not measure accuracy on the user's voice. The user reports some
+wrong words but no invented text in the natural-speech transcript. No numeric
+word-error rate was measured; its transcript remains private in ignored storage.
 
 The user described the recording as clear but quiet, with background machine
 noise. Signal inspection found peak 0 dBFS, overall RMS about -11.9 dBFS, and
