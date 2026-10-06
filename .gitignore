@@ -1,1 +1,7 @@
 /logs/
+/.local/
+/recordings/
+/transcripts/
+/models/
+/build/
+__pycache__/
