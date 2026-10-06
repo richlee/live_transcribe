@@ -8,9 +8,9 @@ Launch **Live Transcribe** from XFCE's applications menu. It starts a small tray
 - **Left click the tray icon**: the same toggle.
 - **Right click**: pause/resume, stop and finish queued speech, open the latest session folder, instructions, or quit.
 
-On the first toggle, Writer is opened with its local UNO connection. Click the intended Writer document when the crosshair appears. Capture stays off during selection; after successful binding the selected window is activated and listening starts. Later shortcut presses leave focus alone and affect only microphone capture. Each new session asks you to select a document again.
+Open the Writer document you want to continue working in first. On the first toggle, the app enables the local UNO connection without creating another document. Click your existing Writer document when the crosshair appears. Capture stays off during selection; after successful binding the selected window is activated and listening starts. Later shortcut presses leave focus alone and affect only microphone capture. Each new session asks you to select a document again.
 
-Pause flushes any speech already captured and lets recognition/insertion finish. Use the global shortcut while still in Writer to avoid withholding that final phrase. Stop or quit drains saved phrases before exiting. Starting again creates a new session; it does not deliver held text from an earlier session.
+Pause flushes any speech already captured and lets recognition/insertion finish. Use the global shortcut while still in Writer to avoid withholding that final phrase. **Stop session — keep tray running** drains saved phrases and returns the tray to Ready. **Quit app — remove tray icon** drains saved phrases and closes the app, so its icon disappears. Relaunch Live Transcribe from the applications menu to bring it back. Starting again creates a new session; it does not deliver held text from an earlier session.
 
 ## Indicator
 

@@ -4,6 +4,7 @@ import fcntl
 import os
 from pathlib import Path
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -16,6 +17,19 @@ from gi.repository import GLib, Gtk, Keybinder
 from .desktop_state import DesktopState
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def ensure_writer_connection(port, log):
+    try:
+        with socket.create_connection(('127.0.0.1', port), timeout=0.2):
+            return None  # Reuse the running Writer instance without invoking it again.
+    except OSError:
+        return subprocess.Popen(['flatpak', 'run', '--env=GTK_MODULES=',
+            'org.libreoffice.LibreOffice', '--nologo',
+            f'--accept=socket,host=127.0.0.1,port={port};urp;StarOffice.ServiceManager'],
+            stdout=log, stderr=log)
+
+
 class Tray:
     def __init__(self, shortcut='<Control><Alt>space', port=20027):
         self.shortcut, self.port = shortcut, port
@@ -32,10 +46,10 @@ class Tray:
         self.status.set_sensitive(False)
         self.menu.append(self.status)
         self.toggle_item = self.item('Start dictation / select Writer', self.toggle)
-        self.stop_item = self.item('Stop session (finish queued speech)', self.stop)
+        self.stop_item = self.item('Stop session — keep tray running', self.stop)
         self.item('Open latest session folder', self.open_session)
         self.item('Instructions', lambda *_: subprocess.Popen(['xdg-open', str(ROOT / 'docs/DESKTOP.md')]))
-        self.item('Quit (finish queued speech)', self.quit)
+        self.item('Quit app — remove tray icon', self.quit)
         self.menu.show_all()
         self.icon = Gtk.StatusIcon()
         self.icon.set_title('Live Transcribe')
@@ -89,10 +103,7 @@ class Tray:
         local.mkdir(exist_ok=True, mode=0o700)
         self.log = (local / 'desktop.log').open('w')
         # Suppress the inherited optional sound module only for Flatpak Writer.
-        self.writer_process = subprocess.Popen(['flatpak', 'run', '--env=GTK_MODULES=',
-            'org.libreoffice.LibreOffice', '--writer',
-            f'--accept=socket,host=127.0.0.1,port={self.port};urp;StarOffice.ServiceManager'],
-            stdout=self.log, stderr=self.log)
+        self.writer_process = ensure_writer_connection(self.port, self.log)
         command = [str(ROOT / '.local/venv/bin/python'), '-m', 'live_transcribe',
                    '--writer', '--writer-port', str(self.port), '--no-text', '--control-stdin', '--start-paused']
         self.child = subprocess.Popen(command, cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE,

@@ -33,3 +33,5 @@ Deferred improvements: try a 500 ms pause threshold instead of 750 ms, assessing
 The reported canberra startup warning comes from the optional sound module requested by host GTK_MODULES. The host module is already installed. The launcher clears GTK_MODULES only for its Flatpak Writer subprocess; public test-profile startup produced no warning. Desktop-wide settings are untouched.
 
 Focus checks and writes remain separate: a last-moment focus change can write only into the original bound document, never the newly focused app. Recovery requires the original session bookmark (save ODT to persist it); a partially inserted phrase is not automatically retried. Preserve terminal capture/recovery. Never commit private session content.
+
+User feedback: opening a fresh Writer document on first toggle was confusing. Startup now reuses an existing loopback UNO connection, or requests --nologo with the UNO accept option without --writer, so users can select their existing Writer document. Menu labels explicitly distinguish stopping the session (tray stays) from quitting the app (icon disappears).
