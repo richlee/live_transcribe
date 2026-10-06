@@ -75,3 +75,31 @@ passed both speed and user accuracy checks; do not proceed to live integration
 yet. Next, verify the selected input port and gain, obtain a clearer recording,
 and repeat the comparison. If small Vosk remains inaccurate on improved input,
 investigate another recognition configuration before choosing an engine.
+
+## Quieter microphone retest
+
+The user supplied a second recording after the suggested gain adjustment and
+reported very quiet playback. Its duration is 30.011 s, peak -15.0 dBFS,
+overall RMS -39.9 dBFS, and there are no samples at the digital limit. This
+removes the first take's clipping indicator but does not establish good
+signal-to-noise ratio or accurate recognition.
+
+Later mixer inspection shows hardware Capture at +30 dB again, with PipeWire
+source volume 32% (-30 dB). These are readings after capture, not proof of the
+settings used during it. Direct ALSA adjustment did not leave the requested
+hardware setting in place; the cause is unverified. Avoid drawing conclusions
+about hardware gain from the command alone.
+
+A derived copy was amplified uniformly by 10 dB using FFmpeg `volume=10dB`.
+It has peak -5.0 dBFS, RMS -29.9 dBFS and no clipped samples. The original is
+preserved. This boosts speech and noise equally, without improving the original
+signal-to-noise ratio or restoring information. Both files remain private.
+
+| Audio | Wall time | Real-time factor | Peak RSS |
+| --- | ---: | ---: | ---: |
+| Second take, unamplified | 8.535 s | 0.284 | 243.6 MiB |
+| Same take, +10 dB copy | 8.498 s | 0.283 | 243.4 MiB |
+
+Both runs use the same small English Vosk model and benchmark helper as above.
+User accuracy assessment of the retest is pending. No engine has yet passed
+both speed and user accuracy checks.
