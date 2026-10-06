@@ -84,11 +84,11 @@ overall RMS -39.9 dBFS, and there are no samples at the digital limit. This
 removes the first take's clipping indicator but does not establish good
 signal-to-noise ratio or accurate recognition.
 
-Later mixer inspection shows hardware Capture at +30 dB again, with PipeWire
-source volume 32% (-30 dB). These are readings after capture, not proof of the
-settings used during it. Direct ALSA adjustment did not leave the requested
-hardware setting in place; the cause is unverified. Avoid drawing conclusions
-about hardware gain from the command alone.
+Later mixer inspection shows hardware Capture at +30 dB, with PipeWire source
+volume 32% (-30 dB). The user confirms they had already restored Capture to
++30 dB before that inspection. These readings do not establish the settings
+during capture, and do not indicate a failed or overridden gain adjustment.
+The earlier inference that ALSA adjustment did not persist was incorrect.
 
 A derived copy was amplified uniformly by 10 dB using FFmpeg `volume=10dB`.
 It has peak -5.0 dBFS, RMS -29.9 dBFS and no clipped samples. The original is
@@ -101,5 +101,9 @@ signal-to-noise ratio or restoring information. Both files remain private.
 | Same take, +10 dB copy | 8.498 s | 0.283 | 243.4 MiB |
 
 Both runs use the same small English Vosk model and benchmark helper as above.
-User accuracy assessment of the retest is pending. No engine has yet passed
-both speed and user accuracy checks.
+The user reports that recognition is still too inaccurate on the amplified,
+unclipped take. Small Vosk therefore remains unsuitable on the tested input;
+removing the clipping indicator and raising playback level did not make its
+recognition acceptable. This does not prove microphone quality is otherwise
+ideal. No engine has yet passed both speed and user accuracy checks. Further
+recognition configurations should be evaluated before live integration.
