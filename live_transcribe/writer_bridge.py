@@ -58,12 +58,12 @@ class Bridge:
             return 'uncertain'
         return 'pending'
 
-    def finish_words(self, identity, count):
-        if not all(self.delivery_state(f'{identity}_word_{index}') == 'inserted' for index in range(count)):
+    def finish_words(self, identity, count, scheme='word'):
+        if not all(self.delivery_state(f'{identity}_{scheme}_{index}') == 'inserted' for index in range(count)):
             return 'uncertain'
         return 'inserted'
 
-    def insert(self, identity, text, literal_spacing=False):
+    def insert(self, identity, text, literal_spacing=False, operation=None):
         doc = self.document
         begin, done = f'{self.token}_{identity}_begin', f'{self.token}_{identity}_done'
         if doc.Bookmarks.hasByName(done):
@@ -76,6 +76,8 @@ class Bridge:
         if doc.isReadonly() or not cursor.isCollapsed():
             return 'held'
         command = text.strip().lower().rstrip('.!?') if not literal_spacing else ''
+        if operation is not None:
+            command = {'line': 'new line', 'paragraph': 'new paragraph'}.get(operation, '')
         manager = doc.UndoManager
         manager.enterUndoContext('Dictation phrase')
         try:
@@ -106,9 +108,9 @@ def main():
             elif request['action'] == 'check':
                 result = bridge.delivery_state(request['id'])
             elif request['action'] == 'finish_words':
-                result = bridge.finish_words(request['id'], request['count'])
+                result = bridge.finish_words(request['id'], request['count'], request.get('scheme', 'word'))
             else:
-                result = bridge.insert(request['id'], request['text'], request.get('literal_spacing', False))
+                result = bridge.insert(request['id'], request['text'], request.get('literal_spacing', False), request.get('operation'))
             response = {'result': result}
         except Exception as error:
             response = {'error': str(error)}

@@ -18,6 +18,8 @@ class DeliveryTests(unittest.TestCase):
         self.writer.session = self.session
         self.writer.held = False
         self.writer.word_delay_ms = 0
+        self.writer.spoken_commands = False
+        self.writer.legacy_session = True
         self.writer.call = Mock(return_value='inserted')
 
     def tearDown(self):
@@ -168,6 +170,45 @@ class DeliveryTests(unittest.TestCase):
         self.writer.word_delay_ms = 75
         self.writer.deliver(1)
         self.writer.call.assert_called_once_with({'action': 'insert', 'id': 1, 'text': 'New paragraph.'})
+
+    def test_inline_plan_is_frozen_before_hold_and_mode_changes(self):
+        self.writer.legacy_session = False
+        self.writer.spoken_commands = True
+        self.writer.held = True
+        source = 'Hello comma next full stop new paragraph Again.'
+        self.record(1, text=source)
+        self.writer.deliver(1)
+        frozen = self.session.read(1)['delivery_plan']
+        self.assertEqual(self.session.read(1)['text'], source)
+        self.assertTrue(any(part['kind'] == 'paragraph' for part in frozen))
+        self.writer.held = False
+        self.writer.spoken_commands = False
+        self.writer.call.side_effect = lambda request: 'pending' if request['action'] == 'check' else 'inserted'
+        self.writer.deliver(1)
+        self.assertEqual(self.session.read(1)['delivery_plan'], frozen)
+        sent = [call.args[0] for call in self.writer.call.call_args_list if call.args[0]['action'] == 'insert']
+        self.assertEqual([request['operation'] for request in sent], [part['kind'] for part in frozen])
+        self.assertEqual(self.session.read(1)['delivery'], 'inserted')
+
+    def test_off_mode_sends_command_names_as_literal_text(self):
+        self.writer.legacy_session = False
+        self.writer.spoken_commands = False
+        self.record(1, text='new paragraph')
+        self.writer.call.side_effect = lambda request: 'pending' if request['action'] == 'check' else 'inserted'
+        self.writer.deliver(1)
+        parts = self.session.read(1)['delivery_plan']
+        self.assertEqual([part['kind'] for part in parts], ['text', 'text'])
+        self.assertEqual(''.join(part['text'] for part in parts), 'new paragraph')
+
+    def test_failed_action_blocks_rest_of_inline_sequence(self):
+        self.writer.legacy_session = False
+        self.writer.spoken_commands = True
+        self.record(1, text='Hello full stop new paragraph Next.')
+        self.writer.call.side_effect = ['pending', 'inserted', 'uncertain']
+        self.writer.deliver(1)
+        self.assertEqual(self.session.read(1)['delivery'], 'uncertain')
+        self.assertEqual(self.writer.call.call_count, 3)
+        self.assertTrue(self.writer.held)
 
 
 if __name__ == '__main__':

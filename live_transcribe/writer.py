@@ -7,6 +7,7 @@ import time
 import uuid
 
 from .core import atomic_text
+from .commands import delivery_plan
 
 
 def select_document_window(stop=None):
@@ -39,11 +40,13 @@ def select_document_window(stop=None):
 
 
 class Writer:
-    def __init__(self, session, port, window=None, recovering=False, stop=None, word_delay_ms=0):
+    def __init__(self, session, port, window=None, recovering=False, stop=None, word_delay_ms=0, spoken_commands=True):
         self.session = session
         self.held = False
         self.process = None
         self.word_delay_ms = word_delay_ms
+        self.spoken_commands = spoken_commands
+        self.legacy_session = False
         if window is None:
             print('[WRITER] Click the intended Writer document to bind this session.', flush=True)
             window = select_document_window(stop)
@@ -52,8 +55,10 @@ class Writer:
             if not path.exists():
                 raise RuntimeError('Session has no original Writer target; use transcript.txt manually')
             target = json.loads(path.read_text())
+            self.legacy_session = 'spoken_commands' not in target
+            self.spoken_commands = target.get('spoken_commands', False)
         else:
-            target = {'token': '_live_transcribe_' + uuid.uuid4().hex}
+            target = {'token': '_live_transcribe_' + uuid.uuid4().hex, 'spoken_commands': spoken_commands}
         self.process = subprocess.Popen(['/usr/bin/python3', '-m', 'live_transcribe.writer_bridge'],
                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
         try:
@@ -100,19 +105,27 @@ class Writer:
         record = self.session.read(identity)
         if record['status'] != 'complete' or not record.get('text') or record.get('delivery') == 'inserted':
             return
+        # Freeze the exact sequence before the first attempt, including withheld phrases.
+        # Existing partially delivered sessions retain their original tracking scheme.
+        if not self.legacy_session and 'delivery_plan' not in record and 'delivery' not in record and 'delivery_style' not in record:
+            record['delivery_plan'] = delivery_plan(record['text'], self.spoken_commands)
+            record['delivery_style'] = 'commands-v1'
+            self.session.update(record)
         if self.held:
             result = 'held'
         else:
             # Persist intent before crossing the process boundary. Bookmarks resolve lost acknowledgements.
             record['delivery'] = 'inserting'
             command = record['text'].strip().lower().rstrip('.!?')
-            paced = command not in ('new line', 'new paragraph') and (
+            paced = 'delivery_plan' not in record and command not in ('new line', 'new paragraph') and (
                 self.word_delay_ms > 0 or record.get('delivery_style') == 'words-v1')
             if paced:
                 record['delivery_style'] = 'words-v1'
             self.session.update(record)
             try:
-                if paced:
+                if 'delivery_plan' in record:
+                    result = self.deliver_plan(identity, record['delivery_plan'])
+                elif paced:
                     result = self.reveal_words(identity, record['text'])
                 else:
                     result = self.call({'action': 'insert', 'id': identity, 'text': record['text']})
@@ -124,6 +137,21 @@ class Writer:
         if result != 'inserted':
             self.held = True
         print(f'[WRITER] Phrase {identity:06}: {result}; text remains in transcript.txt', flush=True)
+
+    def deliver_plan(self, identity, parts):
+        state = self.call({'action': 'check', 'id': identity})
+        if state != 'pending':
+            return state
+        delay = min(self.word_delay_ms / 1000, 1.2 / max(1, len(parts) - 1))
+        for index, part in enumerate(parts):
+            result = self.call({'action': 'insert', 'id': f'{identity}_command_{index}',
+                                'text': part['text'], 'operation': part['kind'],
+                                'literal_spacing': index > 0})
+            if result != 'inserted':
+                return result
+            if delay and index < len(parts) - 1:
+                time.sleep(delay)
+        return self.call({'action': 'finish_words', 'id': identity, 'count': len(parts), 'scheme': 'command'})
 
     def close(self):
         if self.process:

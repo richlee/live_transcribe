@@ -22,7 +22,7 @@ From another terminal in the project directory:
 .local/venv/bin/python -m live_transcribe --writer --no-text
 ```
 
-Click the intended Writer document when the crosshair appears. The app brings that explicitly selected window to the front and starts capture. Dictate short phrases with pauses. Final text is inserted at the current cursor. Say **new line** or **new paragraph** as a standalone phrase; those exact commands are case insensitive and allow trailing sentence punctuation. Commands embedded in a sentence remain ordinary text. The local transcript preserves recognized command words.
+Click the intended Writer document when the crosshair appears. The app brings that explicitly selected window to the front and starts capture. Dictate short phrases with pauses. Final text is inserted at the current cursor. Spoken **comma**, **full stop**, **new line** and **new paragraph** now work inline or as standalone commands when command mode is enabled (the default for new sessions). See the [spoken-command reference](COMMANDS.md) for examples, the tray toggle and recovery behavior. The local transcript preserves the original recognized words.
 
 To pause or stop, switch to the terminal and use `p` + Enter or `q` + Enter (Ctrl+C also stops). Returning to the terminal can withhold a phrase still being processed. Pause stops capture but lets recognition finish; stop flushes the final speech and drains recognition. Watch the printed `[WRITER]` statuses. For controls that keep Writer focused, use the [desktop shortcut and tray](DESKTOP.md).
 

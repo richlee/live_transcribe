@@ -251,6 +251,8 @@ def main():
     parser.add_argument("--control-stdin", action="store_true", help="Accept p/q controls through a pipe")
     parser.add_argument("--start-paused", action="store_true", help="Bind Writer without opening the microphone")
     parser.add_argument("--word-delay-ms", type=int, default=0, help="Reveal final words gradually (0–200 ms; 0 inserts a chunk)")
+    parser.add_argument("--spoken-commands", action=argparse.BooleanOptionalAction, default=True,
+                        help="Interpret comma, full stop, new line and new paragraph inline")
     args = parser.parse_args()
     if not 0 <= args.word_delay_ms <= 200:
         parser.error("Word delay must be 0–200 ms")
@@ -293,7 +295,8 @@ def main():
     if args.writer:
         from .writer import Writer
         try:
-            writer = Writer(session, args.writer_port, args.writer_window, bool(args.recover), stop, args.word_delay_ms)
+            writer = Writer(session, args.writer_port, args.writer_window, bool(args.recover), stop,
+                            args.word_delay_ms, args.spoken_commands)
         except Exception as error:
             session.close()
             parser.error(f"Writer connection failed: {error}; see docs/WRITER.md")

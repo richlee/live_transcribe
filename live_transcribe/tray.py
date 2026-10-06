@@ -1,6 +1,7 @@
 """Small XFCE/X11 tray controller. GTK stays outside the recognition venv."""
 import argparse
 import fcntl
+import json
 import os
 from pathlib import Path
 import signal
@@ -15,6 +16,7 @@ gi.require_version('Keybinder', '3.0')
 from gi.repository import GLib, Gtk, Keybinder
 
 from .desktop_state import DesktopState
+from .core import atomic_text
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,6 +36,14 @@ class Tray:
     def __init__(self, shortcut='<Control><Alt>space', port=20027, word_delay_ms=75):
         self.shortcut, self.port = shortcut, port
         self.word_delay_ms = word_delay_ms
+        self.preferences_path = ROOT / '.local/desktop-settings.json'
+        self.spoken_commands = True
+        try:
+            saved = json.loads(self.preferences_path.read_text()).get('spoken_commands')
+            if isinstance(saved, bool):
+                self.spoken_commands = saved
+        except (OSError, ValueError, AttributeError):
+            pass
         self.shortcut_label = Gtk.accelerator_get_label(*Gtk.accelerator_parse(shortcut))
         self.state = DesktopState()
         self.child = None
@@ -49,8 +59,14 @@ class Tray:
         self.menu.append(self.status)
         self.toggle_item = self.item('Start dictation / select Writer', self.toggle)
         self.stop_item = self.item('Stop session — keep tray running', self.stop)
+        self.commands_item = Gtk.CheckMenuItem(label='Spoken punctuation commands')
+        self.commands_item.set_active(self.spoken_commands)
+        self.commands_item.set_tooltip_text('Comma, full stop, new line, new paragraph. Stop the session before changing this setting.')
+        self.commands_item.connect('toggled', self.commands_changed)
+        self.menu.append(self.commands_item)
         self.item('Open latest session folder', self.open_session)
         self.item('Instructions', lambda *_: subprocess.Popen(['xdg-open', str(ROOT / 'docs/DESKTOP.md')]))
+        self.item('Spoken command reference', lambda *_: subprocess.Popen(['xdg-open', str(ROOT / 'docs/COMMANDS.md')]))
         self.item('Quit app — remove tray icon', self.quit)
         self.menu.show_all()
         self.icon = Gtk.StatusIcon()
@@ -97,6 +113,18 @@ class Tray:
         self.toggle_item.set_label(f'{action}    ({shortcut})')
         self.toggle_item.set_sensitive(self.state.phase not in ('starting', 'stopping'))
         self.stop_item.set_sensitive(self.child is not None and self.state.phase != 'stopping')
+        self.commands_item.set_sensitive(self.child is None and self.state.phase == 'ready')
+
+    def commands_changed(self, item):
+        enabled = item.get_active()
+        if enabled == self.spoken_commands:
+            return
+        try:
+            atomic_text(self.preferences_path, json.dumps({'spoken_commands': enabled}) + '\n')
+            self.spoken_commands = enabled
+        except OSError as error:
+            self.dialog(f'Could not save command setting: {error}')
+            item.set_active(self.spoken_commands)
 
     def start(self):
         self.state = DesktopState(phase='starting')
@@ -111,6 +139,7 @@ class Tray:
         command = [str(ROOT / '.local/venv/bin/python'), '-m', 'live_transcribe',
                    '--writer', '--writer-port', str(self.port), '--no-text', '--control-stdin', '--start-paused',
                    '--word-delay-ms', str(self.word_delay_ms)]
+        command.append('--spoken-commands' if self.spoken_commands else '--no-spoken-commands')
         self.child = subprocess.Popen(command, cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT)
         os.set_blocking(self.child.stdout.fileno(), False)

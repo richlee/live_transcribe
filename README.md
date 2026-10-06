@@ -23,3 +23,6 @@ and start with `--writer --no-text`.
 
 For applications-menu launch, **Ctrl+Alt+Space** and tray controls, follow
 [desktop setup and usage](docs/DESKTOP.md).
+
+Spoken punctuation, examples and the literal-mode toggle are in the
+[command reference](docs/COMMANDS.md).
