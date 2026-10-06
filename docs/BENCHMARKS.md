@@ -183,3 +183,27 @@ are an available accuracy comparison, although this excerpt showed no text
 difference. Before selecting a final configuration, measure real microphone
 pause-to-final-text delay, output accuracy, queue behaviour, stopping and error
 recovery. No Writer insertion or tray application has been implemented yet.
+
+## Stage 3 microphone-to-transcript verification
+
+The terminal prototype uses WebRTC VAD mode 2, a 750 ms natural pause, 15 s
+phrase cap, Q5_0/OpenBLAS/two-thread recognition and a minimum encoder context
+of 300. Thirteen tests pass, including synthetic capture pause/resume/stop,
+non-overlap, short speech on stop, cancellation, failure/retry, duplicate-free
+recovery and locking. Public replay plus existing user-recording replay run
+through the actual engine, with capture and recognition progressing concurrently.
+
+The first user-started live microphone session produced eight completed segments:
+six ended at natural pauses, one at manual pause and one at stop. No engine
+errors were recorded and the capture log was empty. Recognition times were
+0.758–1.160 s and queue waits 0.007–0.028 s. Two segments produced empty text;
+their audio remains private for review. The user reports pause/resume worked,
+final text is accurate enough and delay is acceptable. Stopping saved the last
+detected speech, and recovery of this completed session left the transcript
+byte-for-byte unchanged, skipping recognition of completed records.
+
+Estimated pause-to-final times for naturally ended segments were 1.516–1.918 s.
+These combine VAD-classified silence, queue wait and recognition; they exclude
+audio-service buffering and VAD's delay in detecting the real speech endpoint.
+They are not measured end-to-end user-perceived latency. Session contents and
+recordings are not committed. Instructions and limitations: `PROTOTYPE.md`.
