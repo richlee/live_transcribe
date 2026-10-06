@@ -17,6 +17,7 @@ class DeliveryTests(unittest.TestCase):
         self.writer = Writer.__new__(Writer)
         self.writer.session = self.session
         self.writer.held = False
+        self.writer.word_delay_ms = 0
         self.writer.call = Mock(return_value='inserted')
 
     def tearDown(self):
@@ -104,6 +105,69 @@ class DeliveryTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'no microphone was opened'):
                 select_document_window()
         self.assertEqual(selector.call_count, 1)
+
+    def test_word_reveal_preserves_spacing_and_resumes_after_focus_loss(self):
+        text = "It's smooth,  isn't it?"
+        self.record(1, text=text)
+        self.writer.word_delay_ms = 75
+        written, completed = [], set()
+        focused = False
+        def bridge(request):
+            nonlocal focused
+            if request['action'] == 'check':
+                return 'pending'
+            if request['action'] == 'finish_words':
+                return 'inserted'
+            if request['id'] in completed:
+                return 'inserted'
+            if written and not focused:
+                return 'held'
+            written.append(request['text'])
+            completed.add(request['id'])
+            return 'inserted'
+        self.writer.call.side_effect = bridge
+        with patch('live_transcribe.writer.time.sleep'):
+            self.writer.deliver(1)
+        self.assertEqual(written, ["It's"])
+        self.assertEqual(self.session.read(1)['delivery'], 'held')
+        self.assertEqual(self.session.read(1)['delivery_style'], 'words-v1')
+        # Explicit recovery with pacing disabled must still skip completed word markers.
+        self.writer.held, self.writer.word_delay_ms, focused = False, 0, True
+        self.writer.deliver(1)
+        self.assertEqual(''.join(written), text)
+        self.assertEqual(self.session.read(1)['delivery'], 'inserted')
+
+    def test_paced_recovery_respects_previous_whole_phrase_marker(self):
+        self.record(1, delivery='inserting')
+        self.writer.word_delay_ms = 75
+        self.writer.call.return_value = 'inserted'
+        self.writer.deliver(1)
+        self.writer.call.assert_called_once_with({'action': 'check', 'id': 1})
+        self.assertEqual(self.session.read(1)['delivery'], 'inserted')
+
+    def test_word_reveal_does_not_continue_after_uncertain_word(self):
+        self.record(1, text='One two three.')
+        self.writer.word_delay_ms = 75
+        self.writer.call.side_effect = ['pending', 'inserted', 'uncertain']
+        with patch('live_transcribe.writer.time.sleep'):
+            self.writer.deliver(1)
+        self.assertEqual(self.writer.call.call_count, 3)
+        self.assertEqual(self.session.read(1)['delivery'], 'uncertain')
+        self.assertTrue(self.writer.held)
+
+    def test_long_phrase_reveal_delay_is_bounded(self):
+        self.record(1, text=' '.join(['word'] * 100))
+        self.writer.word_delay_ms = 200
+        self.writer.call.side_effect = lambda request: 'pending' if request['action'] == 'check' else 'inserted'
+        with patch('live_transcribe.writer.time.sleep') as sleep:
+            self.writer.deliver(1)
+        self.assertLessEqual(sum(call.args[0] for call in sleep.call_args_list), 1.200001)
+
+    def test_paragraph_command_is_not_revealed_as_words(self):
+        self.record(1, text='New paragraph.')
+        self.writer.word_delay_ms = 75
+        self.writer.deliver(1)
+        self.writer.call.assert_called_once_with({'action': 'insert', 'id': 1, 'text': 'New paragraph.'})
 
 
 if __name__ == '__main__':

@@ -51,7 +51,19 @@ class Bridge:
         if not recovering:
             bookmark(self.document, token, self.document.CurrentController.getViewCursor())
 
-    def insert(self, identity, text):
+    def delivery_state(self, identity):
+        if self.document.Bookmarks.hasByName(f'{self.token}_{identity}_done'):
+            return 'inserted'
+        if self.document.Bookmarks.hasByName(f'{self.token}_{identity}_begin'):
+            return 'uncertain'
+        return 'pending'
+
+    def finish_words(self, identity, count):
+        if not all(self.delivery_state(f'{identity}_word_{index}') == 'inserted' for index in range(count)):
+            return 'uncertain'
+        return 'inserted'
+
+    def insert(self, identity, text, literal_spacing=False):
         doc = self.document
         begin, done = f'{self.token}_{identity}_begin', f'{self.token}_{identity}_done'
         if doc.Bookmarks.hasByName(done):
@@ -63,7 +75,7 @@ class Bridge:
         cursor = doc.CurrentController.getViewCursor()
         if doc.isReadonly() or not cursor.isCollapsed():
             return 'held'
-        command = text.strip().lower().rstrip('.!?')
+        command = text.strip().lower().rstrip('.!?') if not literal_spacing else ''
         manager = doc.UndoManager
         manager.enterUndoContext('Dictation phrase')
         try:
@@ -74,7 +86,7 @@ class Bridge:
                 # Separate phrases without altering recognized words or punctuation.
                 previous = cursor.Text.createTextCursorByRange(cursor)
                 previous.goLeft(1, True)
-                prefix = ' ' if previous.String and not previous.String[-1].isspace() and text[0] not in ',.;:!?)]}' else ''
+                prefix = ' ' if not literal_spacing and previous.String and not previous.String[-1].isspace() and text[0] not in ',.;:!?)]}' else ''
                 cursor.Text.insertString(cursor, prefix + text, False)
             cursor.collapseToEnd()
             bookmark(doc, done, cursor)
@@ -91,8 +103,12 @@ def main():
             if request['action'] == 'bind':
                 bridge = Bridge(request['port'], request['window'], request['token'], request['recovering'])
                 result = 'bound'
+            elif request['action'] == 'check':
+                result = bridge.delivery_state(request['id'])
+            elif request['action'] == 'finish_words':
+                result = bridge.finish_words(request['id'], request['count'])
             else:
-                result = bridge.insert(request['id'], request['text'])
+                result = bridge.insert(request['id'], request['text'], request.get('literal_spacing', False))
             response = {'result': result}
         except Exception as error:
             response = {'error': str(error)}

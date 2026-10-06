@@ -47,3 +47,7 @@ Connection refused: start Writer with the command above. If an existing Writer p
 If selection is highlighted, collapse it to a cursor before dictation. No selection is overwritten. If a connection error occurs, recognized text remains recoverable. `python3-uno` is an apt package, not a pip dependency. The terminal-only path still works without it.
 
 Verified on this laptop with Flatpak LibreOffice 26.8.1.1 and Debian's Python UNO: ordinary text, apostrophes, punctuation, distinct line/paragraph breaks, clipboard preservation, another Writer document gaining focus, held queue recovery into the original document, wrong-document rejection, duplicate acknowledgement recovery, and ambiguous insertion withholding. Tests used disposable documents and public sample text. The user reports live dictation feels usable, with chunks arriving in approximately 3–4 seconds.
+
+## Gradual final-text reveal
+
+The desktop tray now reveals final phrases word by word. For the terminal CLI, use `--word-delay-ms 75` to enable it (`0` is immediate). Focus is checked per word. A partially revealed phrase uses per-word bookmarks during explicit recovery, so already-inserted words are skipped. An incomplete word marker is ambiguous and requires manual review. Words are separate undo steps; do not edit or undo the active phrase during reveal. See [desktop pacing controls](DESKTOP.md).

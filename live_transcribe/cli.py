@@ -250,7 +250,10 @@ def main():
     parser.add_argument("--writer-window", type=lambda value: int(value, 0), help="Explicit X11 Writer window ID")
     parser.add_argument("--control-stdin", action="store_true", help="Accept p/q controls through a pipe")
     parser.add_argument("--start-paused", action="store_true", help="Bind Writer without opening the microphone")
+    parser.add_argument("--word-delay-ms", type=int, default=0, help="Reveal final words gradually (0–200 ms; 0 inserts a chunk)")
     args = parser.parse_args()
+    if not 0 <= args.word_delay_ms <= 200:
+        parser.error("Word delay must be 0–200 ms")
     if not 300 <= args.pause_ms <= 2000 or not 2 <= args.max_seconds <= 25:
         parser.error("Pause must be 300–2000 ms and maximum phrase length 2–25 s")
     if args.recover and args.replay:
@@ -290,7 +293,7 @@ def main():
     if args.writer:
         from .writer import Writer
         try:
-            writer = Writer(session, args.writer_port, args.writer_window, bool(args.recover), stop)
+            writer = Writer(session, args.writer_port, args.writer_window, bool(args.recover), stop, args.word_delay_ms)
         except Exception as error:
             session.close()
             parser.error(f"Writer connection failed: {error}; see docs/WRITER.md")

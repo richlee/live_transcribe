@@ -12,6 +12,20 @@ Open the Writer document you want to continue working in first. On the first tog
 
 Pause flushes any speech already captured and lets recognition/insertion finish. Use the global shortcut while still in Writer to avoid withholding that final phrase. **Stop session — keep tray running** drains saved phrases and returns the tray to Ready. **Quit app — remove tray icon** drains saved phrases and closes the app, so its icon disappears. Relaunch Live Transcribe from the applications menu to bring it back. Starting again creates a new session; it does not deliver held text from an earlier session.
 
+## Word-by-word reveal
+
+The tray reveals **completed** phrases word by word, with a default 75 ms interval. The first word still waits for recognition; this smooths display rather than providing provisional transcription. Deliberate waits are capped at 1.2 seconds per phrase; Writer/API overhead can add time. One worker recognizes and delivers phrases in order, so a second phrase cannot interleave with the first. Capture continues during reveal; if processing falls behind, the existing bounded queue stops capture and keeps saved audio for recovery.
+
+Focus is checked before each word. Switching away withholds the remaining words and subsequent phrases. Explicit recovery uses per-word bookmarks to skip words already inserted. An ambiguous word still requires manual review. Each revealed word is a separate undo step; avoid editing or undoing a phrase during reveal. Line/paragraph commands remain immediate actions.
+
+To adjust pacing, quit the tray and relaunch:
+
+```bash
+bash scripts/launch-desktop.sh --word-delay-ms 50
+```
+
+Use `--word-delay-ms 0` for immediate chunks, or a value up to 200 ms. The terminal CLI defaults to immediate chunks; add `--word-delay-ms 75` there to enable gradual delivery. Recovery retains per-word tracking for a partially revealed phrase even when pacing is disabled.
+
 ## Indicator
 
 | Symbol/color | Meaning |
@@ -80,6 +94,8 @@ The launcher clears the inherited optional `GTK_MODULES` sound-module setting fo
 
 Logs contain status and session paths, not recognized text (`--no-text` is always used). Private transcripts and audio remain in ignored `.local/sessions/`. The latest desktop log is replaced when a new session starts. The menu can still open the latest stopped session; restarting the tray resets that pointer.
 
-Verified locally: 25 automated checks for existing capture/recovery, delivery safeguards, piped pause/resume and tray state priority; actual XFCE icon embedding; real global-key activation while preserving window focus; graceful stop and held-text indication. An end-to-end test substitutes public sample audio for microphone capture and exercises the real CLI, Whisper and UNO with a disposable Writer profile. User testing of the new shortcut and tray remains the final usability check. Earlier live Writer dictation was accepted at approximately 3–4 seconds per chunk.
+Verified locally: 30 automated checks for existing capture/recovery, delivery safeguards, piped pause/resume and tray state priority; actual XFCE icon embedding; real global-key activation while preserving window focus; graceful stop and held-text indication. An end-to-end test substitutes public sample audio for microphone capture and exercises the real CLI, Whisper and UNO with a disposable Writer profile. User testing of the new shortcut and tray remains the final usability check. Earlier live Writer dictation was accepted at approximately 3–4 seconds per chunk.
 
 If document selection reports a mouse grab, close any popup menu or drag operation and try again. Start closes its own tray menu before launching selection, and selection retries temporary grabs for up to three seconds. Startup errors show the specific cause; capture stays off until document binding succeeds.
+
+Word reveal additionally passed disposable Writer checks for visibly progressive text, exact spacing/punctuation/apostrophes, mid-phrase focus loss, recovery of remaining words without duplication, paragraph commands and ambiguous-word withholding. User feedback on reveal pacing remains pending.

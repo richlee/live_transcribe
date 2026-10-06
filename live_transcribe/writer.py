@@ -1,5 +1,6 @@
 """Durable final-text delivery, with a focus-loss latch and duplicate protection."""
 import json
+import re
 import select
 import subprocess
 import time
@@ -38,10 +39,11 @@ def select_document_window(stop=None):
 
 
 class Writer:
-    def __init__(self, session, port, window=None, recovering=False, stop=None):
+    def __init__(self, session, port, window=None, recovering=False, stop=None, word_delay_ms=0):
         self.session = session
         self.held = False
         self.process = None
+        self.word_delay_ms = word_delay_ms
         if window is None:
             print('[WRITER] Click the intended Writer document to bind this session.', flush=True)
             window = select_document_window(stop)
@@ -78,6 +80,22 @@ class Writer:
             raise RuntimeError(response['error'])
         return response['result']
 
+    def reveal_words(self, identity, text):
+        state = self.call({'action': 'check', 'id': identity})
+        if state != 'pending':
+            return state
+        # Leading whitespace belongs to the following word, preserving exact spacing.
+        words = re.findall(r'\s*\S+', text)
+        delay = min(self.word_delay_ms / 1000, 1.2 / max(1, len(words) - 1))
+        for index, word in enumerate(words):
+            result = self.call({'action': 'insert', 'id': f'{identity}_word_{index}',
+                                'text': word, 'literal_spacing': index > 0})
+            if result != 'inserted':
+                return result
+            if delay and index < len(words) - 1:
+                time.sleep(delay)
+        return self.call({'action': 'finish_words', 'id': identity, 'count': len(words)})
+
     def deliver(self, identity):
         record = self.session.read(identity)
         if record['status'] != 'complete' or not record.get('text') or record.get('delivery') == 'inserted':
@@ -87,9 +105,17 @@ class Writer:
         else:
             # Persist intent before crossing the process boundary. Bookmarks resolve lost acknowledgements.
             record['delivery'] = 'inserting'
+            command = record['text'].strip().lower().rstrip('.!?')
+            paced = command not in ('new line', 'new paragraph') and (
+                self.word_delay_ms > 0 or record.get('delivery_style') == 'words-v1')
+            if paced:
+                record['delivery_style'] = 'words-v1'
             self.session.update(record)
             try:
-                result = self.call({'action': 'insert', 'id': identity, 'text': record['text']})
+                if paced:
+                    result = self.reveal_words(identity, record['text'])
+                else:
+                    result = self.call({'action': 'insert', 'id': identity, 'text': record['text']})
             except Exception as error:
                 result = 'uncertain'
                 record['delivery_error'] = str(error)

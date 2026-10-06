@@ -31,8 +31,9 @@ def ensure_writer_connection(port, log):
 
 
 class Tray:
-    def __init__(self, shortcut='<Control><Alt>space', port=20027):
+    def __init__(self, shortcut='<Control><Alt>space', port=20027, word_delay_ms=75):
         self.shortcut, self.port = shortcut, port
+        self.word_delay_ms = word_delay_ms
         self.shortcut_label = Gtk.accelerator_get_label(*Gtk.accelerator_parse(shortcut))
         self.state = DesktopState()
         self.child = None
@@ -108,7 +109,8 @@ class Tray:
         # Suppress the inherited optional sound module only for Flatpak Writer.
         self.writer_process = ensure_writer_connection(self.port, self.log)
         command = [str(ROOT / '.local/venv/bin/python'), '-m', 'live_transcribe',
-                   '--writer', '--writer-port', str(self.port), '--no-text', '--control-stdin', '--start-paused']
+                   '--writer', '--writer-port', str(self.port), '--no-text', '--control-stdin', '--start-paused',
+                   '--word-delay-ms', str(self.word_delay_ms)]
         self.child = subprocess.Popen(command, cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                       stderr=subprocess.STDOUT)
         os.set_blocking(self.child.stdout.fileno(), False)
@@ -235,7 +237,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--shortcut', default='<Control><Alt>space')
     parser.add_argument('--writer-port', type=int, default=20027)
+    parser.add_argument('--word-delay-ms', type=int, default=75, help='Final-word reveal interval, 0–200 ms (0 disables)')
     args = parser.parse_args()
+    if not 0 <= args.word_delay_ms <= 200:
+        parser.error('Word delay must be 0–200 ms')
     if os.environ.get('XDG_SESSION_TYPE', 'x11') != 'x11' or not os.environ.get('DISPLAY'):
         parser.error('The current desktop prototype requires XFCE/X11')
     os.umask(0o077)
@@ -247,7 +252,7 @@ def main():
     except BlockingIOError:
         print('Live Transcribe is already running in the tray.', file=sys.stderr)
         return
-    tray = Tray(args.shortcut, args.writer_port)
+    tray = Tray(args.shortcut, args.writer_port, args.word_delay_ms)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, tray.quit)
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, tray.quit)
     try:
