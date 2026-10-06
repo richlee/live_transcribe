@@ -2,6 +2,7 @@
 import json
 import subprocess
 import sys
+import time
 
 import uno
 
@@ -25,7 +26,15 @@ class Bridge:
     def __init__(self, port, window, token, recovering):
         local = uno.getComponentContext()
         resolver = local.ServiceManager.createInstanceWithContext('com.sun.star.bridge.UnoUrlResolver', local)
-        context = resolver.resolve(f'uno:socket,host=127.0.0.1,port={port};urp;StarOffice.ComponentContext')
+        deadline = time.monotonic() + 3
+        while True:
+            try:
+                context = resolver.resolve(f'uno:socket,host=127.0.0.1,port={port};urp;StarOffice.ComponentContext')
+                break
+            except uno.getClass('com.sun.star.connection.NoConnectException'):
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.1)
         desktop = context.ServiceManager.createInstanceWithContext('com.sun.star.frame.Desktop', context)
         components = desktop.getComponents().createEnumeration()
         self.document = None

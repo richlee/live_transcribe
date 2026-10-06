@@ -1,6 +1,7 @@
 # Speech benchmark setup
 
-This is a feasibility experiment, not yet a live dictation application.
+For the current desktop application, start with [desktop setup](DESKTOP.md).
+This page retains the individual engine setup and benchmark commands.
 Upstream instructions: https://github.com/ggml-org/whisper.cpp#quick-start
 
 ## Install and build
@@ -166,7 +167,7 @@ transcripts locally; models, excerpts and logs remain ignored.
 
 ## Stop, privacy and troubleshooting
 
-No daemon or listening service is installed. Capture ends after 30 seconds;
+The benchmark recorder installs no daemon. Its capture ends after 30 seconds;
 recognition ends when the CLI exits. Ctrl+C stops a running command. The
 download/build needs network access; recognition and recording run locally
 after setup. Recordings, transcripts, models and build outputs stay in
@@ -177,4 +178,4 @@ Agent sandbox failures connecting to audio services do not imply desktop
 audio is broken. Run capture in the ordinary desktop terminal. If recognition
 fails, inspect the local `engine.log`; if it reports an illegal instruction,
 check the CPU-native build rather than enabling AVX2/FMA on this CPU. Writer
-installation and insertion tests belong to a later stage.
+setup and insertion are documented in [Writer instructions](WRITER.md).

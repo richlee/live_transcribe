@@ -24,7 +24,7 @@ From another terminal in the project directory:
 
 Click the intended Writer document when the crosshair appears. The app brings that explicitly selected window to the front and starts capture. Dictate short phrases with pauses. Final text is inserted at the current cursor. Say **new line** or **new paragraph** as a standalone phrase; those exact commands are case insensitive and allow trailing sentence punctuation. Commands embedded in a sentence remain ordinary text. The local transcript preserves recognized command words.
 
-To pause or stop, switch to the terminal and use `p` + Enter or `q` + Enter (Ctrl+C also stops). Returning to the terminal can withhold a phrase still being processed. Pause stops capture but lets recognition finish; stop flushes the final speech and drains recognition. Watch the printed `[WRITER]` statuses. Global controls are stage 5.
+To pause or stop, switch to the terminal and use `p` + Enter or `q` + Enter (Ctrl+C also stops). Returning to the terminal can withhold a phrase still being processed. Pause stops capture but lets recognition finish; stop flushes the final speech and drains recognition. Watch the printed `[WRITER]` statuses. For controls that keep Writer focused, use the [desktop shortcut and tray](DESKTOP.md).
 
 ## Focus and recovery
 
@@ -46,4 +46,4 @@ Connection refused: start Writer with the command above. If an existing Writer p
 
 If selection is highlighted, collapse it to a cursor before dictation. No selection is overwritten. If a connection error occurs, recognized text remains recoverable. `python3-uno` is an apt package, not a pip dependency. The terminal-only path still works without it.
 
-Verified on this laptop with Flatpak LibreOffice 26.8.1.1 and Debian's Python UNO: ordinary text, apostrophes, punctuation, distinct line/paragraph breaks, clipboard preservation, another Writer document gaining focus, held queue recovery into the original document, wrong-document rejection, duplicate acknowledgement recovery, and ambiguous insertion withholding. Tests used disposable documents and public sample text. Actual microphone-to-Writer usability still needs user feedback.
+Verified on this laptop with Flatpak LibreOffice 26.8.1.1 and Debian's Python UNO: ordinary text, apostrophes, punctuation, distinct line/paragraph breaks, clipboard preservation, another Writer document gaining focus, held queue recovery into the original document, wrong-document rejection, duplicate acknowledgement recovery, and ambiguous insertion withholding. Tests used disposable documents and public sample text. The user reports live dictation feels usable, with chunks arriving in approximately 3–4 seconds.

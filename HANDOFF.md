@@ -4,7 +4,7 @@ Updated: 2026-10-06.
 
 ## Current stage
 
-Stages 1–3 are verified for the current experiment. Stage 4 Writer insertion is implemented and independently tested; user microphone-to-Writer feedback is pending. Seventeen automated tests pass. Actual Whisper replay and live microphone capture succeed; the user accepted stage 3 accuracy, delay and pause/resume. Writer uses a host Python UNO sidecar with Flatpak LibreOffice, binds one selected document, checks X11 focus, latches withholding and preserves durable final text. Session/phrase bookmarks prevent wrong-document recovery and duplicate insertion; ambiguous delivery requires manual review. Disposable-document checks pass for text, punctuation, apostrophes, line/paragraph breaks, clipboard preservation, focus switching to another document and recovery. Instructions: `docs/WRITER.md`. Global shortcut/tray remain stage 5.
+Stages 1–4 are verified and the user accepts Writer dictation (roughly 3–4 seconds per chunk, feels usable). Stage 5 is implemented: GTK3/X11 tray controller, Ctrl+Alt+Space listening toggle via Keybinder, focus-preserving pause/resume, explicit graceful stop/quit, private status log, single-instance lock, and an installed applications-menu launcher. The app starts with the microphone off and selects/binds one Writer document on the first toggle. Listening/paused/processing/held/error states have distinct icons and microphone details in tooltip/menu. Held delivery safeguards remain unchanged. Twenty-three automated tests pass, including piped rapid controls, selection cancellation and tray state priority. Actual XFCE tray embedding and global shortcut focus preservation passed, as did end-to-end public-audio capture substitution through the real CLI, Whisper and disposable Writer. The installed desktop entry launches successfully; the tray was left ready with capture off. User shortcut/tray usability feedback is pending. Setup/usage: `docs/DESKTOP.md`; `scripts/setup-local.sh --prepare` prepares missing local dependencies, `--offline` verifies them, and `scripts/install-desktop.py` installs the desktop entry.
 
 ## Findings and constraints
 
@@ -26,4 +26,10 @@ Stages 1–3 are verified for the current experiment. Stage 4 Writer insertion i
 
 ## Next step
 
-Obtain user feedback on live microphone-to-Writer insertion using a blank document and `--writer --no-text`. Focus checks and writes are separate: a last-moment focus change can write only into the original bound document, never the newly focused app. Recovery requires the original session bookmark (save ODT to persist it); a partially inserted phrase is not automatically retried. Once user accepts stage 4, proceed to stage 5 shortcut/tray when authorized. Preserve terminal capture/recovery. Never commit private session content.
+Ask the user to try Ctrl+Alt+Space while dictating in a blank Writer document, verify pause/resume without leaving Writer, inspect the tooltip/menu and stop using the tray. Stage 5 user feedback remains pending. Do not change desktop shortcuts globally or enable autostart without a request. This is a local checkout-backed installation; general distribution remains deferred until stage 5 usability is accepted.
+
+Deferred improvements: try a 500 ms pause threshold instead of 750 ms, assessing premature phrase splits; add explicit delivery of held text with existing document binding and duplicate safeguards. Keep current settings until these experiments are requested.
+
+The reported canberra startup warning comes from the optional sound module requested by host GTK_MODULES. The host module is already installed. The launcher clears GTK_MODULES only for its Flatpak Writer subprocess; public test-profile startup produced no warning. Desktop-wide settings are untouched.
+
+Focus checks and writes remain separate: a last-moment focus change can write only into the original bound document, never the newly focused app. Recovery requires the original session bookmark (save ODT to persist it); a partially inserted phrase is not automatically retried. Preserve terminal capture/recovery. Never commit private session content.

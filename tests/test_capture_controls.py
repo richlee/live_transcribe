@@ -83,3 +83,57 @@ class CaptureControlTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class PipeControlTests(unittest.TestCase):
+    def test_pipe_controls_start_paused_and_never_capture_before_resume(self):
+        original_popen = subprocess.Popen
+        captures = []
+        code = "import os,time\nfor i in range(1000):\n os.write(1,b'\\1\\0'*480); time.sleep(.03)\n"
+        def synthetic_capture(command, **kwargs):
+            captures.append(command)
+            return original_popen([sys.executable, '-c', code], **kwargs)
+        read_fd, write_fd = os.pipe()
+        control = os.fdopen(read_fd, 'r')
+        frames = []
+        errors = []
+        stop = threading.Event()
+        with tempfile.TemporaryDirectory() as directory:
+            session = Session(directory)
+            segmenter = Segmenter()
+            def run():
+                try:
+                    for frame in microphone_frames('unused', session, segmenter, lambda phrase: None,
+                                                   stop, control_stdin=True, start_paused=True):
+                        frames.append(frame)
+                except Exception as error:
+                    errors.append(error)
+            with patch('live_transcribe.cli.subprocess.Popen', synthetic_capture), patch('sys.stdin', control):
+                thread = threading.Thread(target=run)
+                thread.start()
+                try:
+                    time.sleep(.15)
+                    self.assertEqual(captures, [])
+                    os.write(write_fd, b'p\n')
+                    deadline = time.monotonic() + 2
+                    while not frames and time.monotonic() < deadline:
+                        time.sleep(.02)
+                    self.assertTrue(frames)
+                    os.write(write_fd, b'p\n')
+                    deadline = time.monotonic() + 2
+                    while len(captures) != 1 and time.monotonic() < deadline:
+                        time.sleep(.02)
+                    time.sleep(.15)
+                    count = len(frames)
+                    time.sleep(.1)
+                    self.assertEqual(count, len(frames))
+                    # Several commands in one write must all be consumed by select().
+                    os.write(write_fd, b'p\np\nq\n')
+                    thread.join(3)
+                    self.assertFalse(thread.is_alive())
+                    self.assertFalse(errors)
+                finally:
+                    stop.set()
+                    thread.join(3)
+            session.close()
+        control.close()
+        os.close(write_fd)

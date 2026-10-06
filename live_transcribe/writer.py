@@ -2,19 +2,34 @@
 import json
 import select
 import subprocess
+import time
 import uuid
 
 from .core import atomic_text
 
 
 class Writer:
-    def __init__(self, session, port, window=None, recovering=False):
+    def __init__(self, session, port, window=None, recovering=False, stop=None):
         self.session = session
         self.held = False
         self.process = None
         if window is None:
             print('[WRITER] Click the intended Writer document to bind this session.', flush=True)
-            window = int(subprocess.check_output(['xdotool', 'selectwindow'], text=True).strip(), 0)
+            selection = subprocess.Popen(['xdotool', 'selectwindow'], stdout=subprocess.PIPE, text=True)
+            try:
+                while selection.poll() is None:
+                    if stop is not None and stop.is_set():
+                        raise RuntimeError('Document selection cancelled; no microphone was opened')
+                    time.sleep(0.05)
+                output = selection.stdout.read()
+                if selection.returncode:
+                    raise RuntimeError('Document selection failed')
+                window = int(output.strip(), 0)
+            finally:
+                if selection.poll() is None:
+                    selection.terminate()
+                    selection.wait(timeout=2)
+                selection.stdout.close()
         path = session.path / 'writer.json'
         if recovering:
             if not path.exists():

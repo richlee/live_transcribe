@@ -1,7 +1,10 @@
 import tempfile
+import subprocess
+import sys
+import threading
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from live_transcribe.core import Session
 from live_transcribe.writer import Writer
@@ -59,6 +62,27 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(self.session.read(1)['delivery'], 'inserted')
         self.writer.deliver(1)
         self.assertEqual(self.writer.call.call_count, 1)
+
+    def test_cancel_document_selection_does_not_leave_selector_running(self):
+        original = subprocess.Popen
+        children = []
+        stop = threading.Event()
+        def selector(command, **kwargs):
+            self.assertEqual(command, ['xdotool', 'selectwindow'])
+            child = original([sys.executable, '-c', 'import time; time.sleep(60)'], **kwargs)
+            children.append(child)
+            return child
+        timer = threading.Timer(0.1, stop.set)
+        timer.start()
+        try:
+            with patch('live_transcribe.writer.subprocess.Popen', selector):
+                with self.assertRaisesRegex(RuntimeError, 'selection cancelled'):
+                    Writer(self.session, 20027, stop=stop)
+            self.assertEqual(len(children), 1)
+            self.assertIsNotNone(children[0].poll())
+            self.assertFalse((self.session.path / 'writer.json').exists())
+        finally:
+            timer.cancel()
 
 
 if __name__ == '__main__':

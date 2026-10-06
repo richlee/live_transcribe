@@ -68,6 +68,8 @@ class Recognizer:
                     # Disk errors must not kill the worker and leave shutdown blocked.
                     self.cancel.set()
                 say("ERROR", f"Phrase {identity:06} retained for recovery: {error}")
+            finally:
+                say("IDLE", "Recognition worker ready.")
 
     def recognize(self, identity, queued):
         record = self.session.read(identity)
@@ -145,12 +147,12 @@ def replay_frames(path, realtime, stop):
             yield frame.ljust(FRAME_BYTES, b"\0")
 
 
-def microphone_frames(source, session, segmenter, submit, stop):
+def microphone_frames(source, session, segmenter, submit, stop, control_stdin=False, start_paused=False):
     """Capture with small buffers; p pauses/resumes, q stops from the terminal."""
-    paused = False
+    paused = start_paused
     process = None
     selector = selectors.DefaultSelector()
-    if sys.stdin.isatty():
+    if sys.stdin.isatty() or control_stdin:
         selector.register(sys.stdin, selectors.EVENT_READ, "control")
     pending = bytearray()
     log = (session.path / "capture.log").open("a")
@@ -171,6 +173,8 @@ def microphone_frames(source, session, segmenter, submit, stop):
             process = None
 
     try:
+        if paused:
+            say("PAUSED", "Capture is off; toggle listening to begin.")
         while not stop.is_set():
             if not paused and process is None:
                 command = ["parec", "--raw", "--format=s16le", "--rate=16000", "--channels=1",
@@ -181,7 +185,16 @@ def microphone_frames(source, session, segmenter, submit, stop):
                 say("LISTENING", "Speak naturally. p + Enter pauses/resumes; q + Enter or Ctrl+C stops.")
             for key, _ in selector.select(timeout=0.1):
                 if key.data == "control":
-                    line = sys.stdin.readline()
+                    if control_stdin:
+                        # Avoid TextIO read-ahead hiding a second command from select().
+                        raw = bytearray()
+                        while (character := os.read(sys.stdin.fileno(), 1)):
+                            raw.extend(character)
+                            if character == b"\n":
+                                break
+                        line = raw.decode(errors="replace")
+                    else:
+                        line = sys.stdin.readline()
                     if not line:
                         stop.set()
                         break
@@ -235,6 +248,8 @@ def main():
     parser.add_argument("--writer", action="store_true", help="Select and bind one Writer document")
     parser.add_argument("--writer-port", type=int, default=20027, help="Local UNO port (default 20027)")
     parser.add_argument("--writer-window", type=lambda value: int(value, 0), help="Explicit X11 Writer window ID")
+    parser.add_argument("--control-stdin", action="store_true", help="Accept p/q controls through a pipe")
+    parser.add_argument("--start-paused", action="store_true", help="Bind Writer without opening the microphone")
     args = parser.parse_args()
     if not 300 <= args.pause_ms <= 2000 or not 2 <= args.max_seconds <= 25:
         parser.error("Pause must be 300–2000 ms and maximum phrase length 2–25 s")
@@ -275,7 +290,7 @@ def main():
     if args.writer:
         from .writer import Writer
         try:
-            writer = Writer(session, args.writer_port, args.writer_window, bool(args.recover))
+            writer = Writer(session, args.writer_port, args.writer_window, bool(args.recover), stop)
         except Exception as error:
             session.close()
             parser.error(f"Writer connection failed: {error}; see docs/WRITER.md")
@@ -312,7 +327,7 @@ def main():
             detector = webrtcvad.Vad(args.vad_mode)
             segmenter = Segmenter(args.pause_ms, args.max_seconds)
             frames = replay_frames(args.replay, args.realtime, stop) if args.replay else microphone_frames(
-                args.source, session, segmenter, submit, stop)
+                args.source, session, segmenter, submit, stop, args.control_stdin, args.start_paused)
             say("REPLAY" if args.replay else "READY", "Only completed phrases are transcribed locally.")
             try:
                 for frame in frames:
