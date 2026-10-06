@@ -1,9 +1,3 @@
-Paste this into Codex on the laptop. It asks Codex to save the brief in the repo so we can share it through GitHub.
-
-We are building a local dictation app for this laptop. Work in the current repository.
-
-First create `PROJECT_BRIEF.md` containing the requirements and approach below. Read any existing `AGENTS.md` and inspect the repository before making changes.
-
 ## Purpose and hardware
 
 This is a dedicated writing machine: an old Samsung NP900X Series 9, Intel Core i5, 4 GB RAM, running MX Linux with XFCE. LibreOffice Writer is the primary application.
