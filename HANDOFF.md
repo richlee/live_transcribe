@@ -15,9 +15,9 @@ Stage 1 inspection is documented in `docs/INSPECTION.md` and committed/pushed in
 - CMake and FFmpeg are now installed. Writer was not found installed in the inspection.
 - Whisper tiny.en takes 19.745 s (2 threads) / 18.217 s (4 threads) for the 11 s public sample, and 43.849 s (4 threads) for the 30.065 s user recording. Slower than real time; base.en comparison deferred. User reports some wrong words but no invented text.
 - Whisper source, CPU-native Release build, models and private speech artifacts are under ignored `.local/`. Recorder and benchmark helpers are in `scripts/`.
-- Small English Vosk model downloaded and extracted under `.local/`. Vosk Python installation and benchmarking pending `python3-venv` installation by the user.
+- Vosk 0.3.45 installed in `.local/venv`; small English model extracted under `.local/`. The same 30.065 s recording takes 12.472 s (RTF 0.415), with peak process RSS 270.9 MiB. Speed supports a live prototype; Vosk accuracy feedback is pending. Dependencies are pinned in `requirements-vosk.txt`, and `pip check` passes.
 - GitHub authentication works outside the sandbox through the keyring. Git writes/network commands can request escalation; do not conclude the token is invalid from sandbox-only authentication checks.
 
 ## Next step
 
-After the user installs `python3-venv`, create `.local/venv`, install Vosk there, and benchmark the same local recording using `scripts/benchmark-vosk.py`. Get user accuracy feedback on the local final transcripts. Check input port/gain if quality is poor. Choose an engine only after speed and accuracy support proceeding. Commit/push benchmark tools and aggregate findings, never private speech artifacts. Then build the microphone-to-transcript prototype before safe Writer insertion and tray controls.
+Get user accuracy feedback on the local Vosk final transcript (path supplied in chat, not stored here). If acceptable, choose Vosk provisionally and build stage 3 microphone-to-final-transcript with pause segmentation, recoverable private output and stop/error handling. If poor, check input port/gain and retest before choosing an engine. File benchmark speed alone does not establish comfortable phrase latency. Safe Writer insertion and tray controls come later. Commit/push aggregate findings, never private speech artifacts.

@@ -90,7 +90,7 @@ Prepare an isolated Vosk environment and the official small English model:
 ```bash
 sudo apt-get install python3-venv
 python3 -m venv .local/venv
-.local/venv/bin/python -m pip install vosk==0.3.45
+.local/venv/bin/python -m pip install -r requirements-vosk.txt
 curl -fL --retry 3 -o .local/vosk-model-small-en-us-0.15.zip \
   https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
 python3 -m zipfile -e .local/vosk-model-small-en-us-0.15.zip .local

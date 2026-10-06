@@ -39,7 +39,25 @@ headroom. A faster-than-real-time result is necessary but still would not
 establish comfortable live dictation: pause detection, short-phrase processing,
 queue growth, stopping and insertion must be tested separately.
 
-Investigate `vosk-model-small-en-us-0.15` next. Its official model listing
-describes it as a 40 MB lightweight English model:
-https://alphacephei.com/vosk/models . Benchmark the same recording and get
-user accuracy feedback before choosing an engine or implementing the tray UI.
+## Vosk fallback
+
+Installed Vosk 0.3.45 in a local Python 3.13 virtual environment. Dependencies
+are pinned in `requirements-vosk.txt`; `pip check` reports no broken requirements.
+The official model listing describes `vosk-model-small-en-us-0.15` as a 40 MB
+lightweight English model: https://alphacephei.com/vosk/models .
+
+| Audio | Audio duration | Wall time | Real-time factor | Peak RSS |
+| --- | ---: | ---: | ---: | ---: |
+| Same user natural-speech recording | 30.065 s | 12.472 s | 0.415 | 270.9 MiB |
+
+Wall time includes Vosk import, model loading, recognition in 250 ms audio
+blocks and writing final text. Peak RSS includes the Python interpreter and
+Vosk in the same process. No partial recognition is saved as final text.
+The run succeeded inside the network-restricted sandbox using the explicit
+local model path. The private transcript remains in ignored local storage.
+
+Vosk processed this recording about 3.5 times faster than Whisper's four-thread
+run and faster than real time. This supports testing a live microphone-to-final-
+transcript prototype if user accuracy feedback is acceptable. It does not
+measure pause-to-text delay, capture queue behaviour or stopping latency.
+User accuracy assessment of Vosk is pending; engine selection remains provisional.
